@@ -136,9 +136,6 @@ snake_symbol = 'o'
 empty_symbol = ' '
 food_symbol = '*'
 def play(board):
-    global movement
-    global game_over
-
     while True:
         if game_over:
             quit()
@@ -147,12 +144,7 @@ def play(board):
         time.sleep(.5)
 
 def update_game_board(board):
-    global movement
-    global movement_dicts
     global head
-    global empty_symbol
-    global snake_symbol
-    global food_symbol
 
     def add_position((a,b), (c,d)):
         return (a+c, b+d)
@@ -191,8 +183,6 @@ def draw_game_board(board):
 
 def init():
     global head
-    global snake_symbol
-    global food_symbol
 
     game_board = Board(get_terminal_dimensions())
 
@@ -212,6 +202,7 @@ def signal_handler(signal, frame):
 
 def quit(signal=None, message=""):
     global game_over
+
     game_over = True
     end_alternate_screen()
     sys.stdout.write(message)
