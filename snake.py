@@ -86,11 +86,44 @@ def movement_listener():
         fcntl.fcntl(sys.stdin, fcntl.F_SETFL, flags)
         quit()
 
+class Board(object):
+    def __init__(self, (board_rows, board_cols)):
+        self.rows = board_rows
+        # Terminal line heights are greater than character widths, so correct
+        # for this by halving columns and padding empty_symbol in __str__()
+        self.columns = board_cols / 2
+        # game_board[y_coord][x_coord] is how I made this work. No real reason.
+        # TODO: Change to (x,y), because I don't like it this way.
+        self.board = [([empty_symbol] * self.columns) for x in xrange(self.rows)]
+    def get(self, coord):
+        if len(coord) != 2:
+            raise Exception # TODO: An actual exception
+        r, c = coord
+        return self.board[r][c]
+    def set(self, coord, value):
+        if len(coord) != 2:
+            raise Exception # TODO: An actual exception
+        r, c = coord
+        self.board[r][c] = value
+    def is_valid_coord(self, coord):
+        pass
+    def width(self):
+        return self.columns
+    def height(self):
+        return self.rows
+    def __str__(self):
+        bstr = ""
+        for rows in self.board:
+            for col in rows:
+                # empty_symbol is for char width and line height discrepancy.
+                bstr += col + empty_symbol
+            # The \r was unneeded until I used the movement_listener function.
+            bstr += '\n\r'
+        return bstr
 
 
-# TODO: make a game board class with get(coord_tuple), set(coord_tuple, value).
+# TODO: Make everything pretty colors.
 # TODO: make head draw as a different character.
-# TODO: terminal has gaps between lines, try to balance this with gaps between chars on each line.
 movement = "up"
 movement_dicts = {"up" : (-1,0), "down" : (1,0), "left" : (0,-1), "right" : (0,1)}
 head = (0,0)
@@ -134,31 +167,26 @@ def update_game_board(board):
         # Tail is removed each turn, and head moves in appropriate direction.
         removed_tail = snake_body[-1]
         del snake_body[-1]
-        game_board[removed_tail[0]][removed_tail[1]] = empty_symbol
+        game_board.set(removed_tail, empty_symbol)
 
         snake_body.insert(0, new_head)
 
         # TODO: Loop in the case of where two foods are next to each other.
         # TODO: Make the above insert, this if, and below game_board access
         #       look less weirdly organized.
-        if game_board[new_head[0]][new_head[1]] == food_symbol:
-            game_board[new_head[0]][new_head[1]] = snake_symbol
+        if game_board.get(new_head) == food_symbol:
+            game_board.set(new_head, snake_symbol)
             new_head = add_position(new_head, movement_dicts[movement])
             snake_body.insert(0, new_head)
 
-        game_board[new_head[0]][new_head[1]] = snake_symbol
+        game_board.set(new_head, snake_symbol)
 
         head = new_head
     else:
         quit()
 
 def draw_game_board(board):
-    move_to_start_of_line()
-    for rows in board:
-        for col in rows:
-            sys.stdout.write(col)
-        # The \r was unneeded until I used the movement_listener function.
-        sys.stdout.write('\n\r')
+    sys.stdout.write(str(board))
 
 
 def init():
@@ -166,16 +194,16 @@ def init():
     global snake_symbol
     global food_symbol
 
-    rows, cols = get_terminal_dimensions()
-    # game_board[y_coord][x_coord] is how I made this work. No real reason.
-    game_board = [([empty_symbol] * cols) for x in xrange(rows)]
-    head = (rows / 2, cols / 2)
-    game_board[head[0]][head[1]] = snake_symbol
-    snake_body.append(head)
+    game_board = Board(get_terminal_dimensions())
 
-    game_board[20][20] = food_symbol
-    game_board[10][30] = food_symbol
-    game_board[30][50] = food_symbol
+    # TODO: I don't like this.
+    head = (game_board.height() / 2, game_board.width() / 2)
+    snake_body.append(head)
+    game_board.set(head, snake_symbol)
+
+    game_board.set((20,20), food_symbol)
+    game_board.set((10,30), food_symbol)
+    game_board.set((30,50), food_symbol)
 
     return game_board
 
