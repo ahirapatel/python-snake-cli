@@ -88,13 +88,18 @@ def movement_listener():
 
 class Board(object):
     def __init__(self, (board_rows, board_cols)):
-        self.rows = board_rows
+        self.rows = board_rows - 1
         # Terminal line heights are greater than character widths, so correct
         # for this by halving columns and padding empty_symbol in __str__()
         self.columns = board_cols / 2
         # game_board[y_coord][x_coord] is how I made this work. No real reason.
         # TODO: Change to (x,y), because I don't like it this way.
         self.board = [([empty_symbol] * self.columns) for x in xrange(self.rows)]
+        self.board[0] = [wall_symbol] * self.columns
+        self.board[-1] = [wall_symbol] * self.columns
+        for columns in self.board:
+            columns[0] = wall_symbol
+            columns[-1] = wall_symbol
     def get(self, coord):
         if len(coord) != 2:
             raise Exception # TODO: An actual exception
@@ -105,8 +110,9 @@ class Board(object):
             raise Exception # TODO: An actual exception
         r, c = coord
         self.board[r][c] = value
-    def is_valid_coord(self, coord):
-        pass
+    def is_valid_coord(self, (a,b)):
+        return a >= 1 and a < self.height()-1 and b >= 1 and b < self.width()-1 \
+                and self.get((a,b)) != wall_symbol
     def width(self):
         return self.columns
     def height(self):
@@ -124,10 +130,10 @@ class Board(object):
 
 # TODO: Make everything pretty colors.
 # TODO: make head draw as a different character.
+num_food = 35
 movement = "up"
 movement_dicts = {"up" : (-1,0), "down" : (1,0), "left" : (0,-1), "right" : (0,1)}
 head = (0,0)
-tail = (0,0)
 snake_body = []
 
 game_over = False
@@ -135,13 +141,15 @@ game_over = False
 snake_symbol = 'o'
 empty_symbol = ' '
 food_symbol = '*'
+wall_symbol = '|'
 def play(board):
     while True:
         if game_over:
             quit()
         update_game_board(board)
         draw_game_board(board)
-        time.sleep(.5)
+        # TODO: Make speed based on parameter.
+        time.sleep(.2)
 
 def update_game_board(board):
     global head
@@ -149,13 +157,8 @@ def update_game_board(board):
     def add_position((a,b), (c,d)):
         return (a+c, b+d)
 
-    def valid_coords((a,b)):
-        #return not(0 > a > get_terminal_height()) or not(0 > b > get_terminal_width())
-        # TODO: Doesn't work for all bounds. Check later.
-        return a >= 0 and a <= get_terminal_height() and b >= 0 and b <= get_terminal_width()
-
     new_head = add_position(head, movement_dicts[movement])
-    if valid_coords(new_head):
+    if board.is_valid_coord(new_head):
         # Tail is removed each turn, and head moves in appropriate direction.
         removed_tail = snake_body[-1]
         del snake_body[-1]
@@ -182,6 +185,7 @@ def draw_game_board(board):
 
 
 def init():
+    import random
     global head
 
     game_board = Board(get_terminal_dimensions())
@@ -191,9 +195,17 @@ def init():
     snake_body.append(head)
     game_board.set(head, snake_symbol)
 
-    game_board.set((20,20), food_symbol)
-    game_board.set((10,30), food_symbol)
-    game_board.set((30,50), food_symbol)
+    # TODO: Make num_food based on board size
+    i = 0
+    while i < num_food:
+        r = random.randint(0, game_board.height()-1)
+        c = random.randint(0, game_board.width()-1)
+        # TODO: check this isn't on top of the snake
+        if not game_board.is_valid_coord((r,c)):
+            continue
+        game_board.set((r,c), food_symbol)
+        i += 1
+
 
     return game_board
 
