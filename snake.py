@@ -47,17 +47,20 @@ def end_alternate_screen():
 
 def movement_listener():
     global movement
+    global game_over
+    global orig_term_settings
+    global orig_flags
 
     arrow_key_start = '\x1b'
 
     fd = sys.stdin.fileno()
     # Store settings for stdin, because we have to restore them later.
-    old_settings = termios.tcgetattr(fd)
+    orig_term_settings = termios.tcgetattr(fd)
     # No echo and have stdin work on a char-by-char basis.
     tty.setraw(fd)
     # Keep options for stdin, then add the nonblocking flag to it.
-    flags = fcntl.fcntl(sys.stdin, fcntl.F_GETFL)
-    fcntl.fcntl(sys.stdin, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+    orig_flags = fcntl.fcntl(sys.stdin, fcntl.F_GETFL)
+    fcntl.fcntl(sys.stdin, fcntl.F_SETFL, orig_flags | os.O_NONBLOCK)
     # Poll object.
     p = select.poll()
     p.register(fd, select.POLLIN)
@@ -65,7 +68,9 @@ def movement_listener():
         while True:
             res = p.poll(100)
             ch = sys.stdin.read(1) if res else None
-            if (ch and ord(ch) == 3) or game_over:  # Ctrl-c or game ended.
+            if (ch and ord(ch) == 3):  # Ctrl-c or game ended.
+                quit(message="User quit")
+            elif game_over:
                 break
             if arrow_key_start == ch:
                 try:
@@ -82,9 +87,8 @@ def movement_listener():
                     movement = "left"
     finally:
         # Restore our old settings for the terminal.
-        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-        fcntl.fcntl(sys.stdin, fcntl.F_SETFL, flags)
-        quit()
+        termios.tcsetattr(fd, termios.TCSADRAIN, orig_term_settings)
+        fcntl.fcntl(sys.stdin, fcntl.F_SETFL, orig_flags)
 
 class Board(object):
     def __init__(self, (board_rows, board_cols)):
@@ -142,10 +146,13 @@ snake_symbol = 'o'
 empty_symbol = ' '
 food_symbol = '*'
 wall_symbol = '|'
+
+orig_term_settings = None
+orig_flags = None
 def play(board):
     while True:
         if game_over:
-            quit()
+            break
         update_game_board(board)
         draw_game_board(board)
         # TODO: Make speed based on parameter.
@@ -178,7 +185,7 @@ def update_game_board(board):
 
         head = new_head
     else:
-        quit()
+        quit(message="Game over!")
 
 def draw_game_board(board):
     sys.stdout.write(str(board))
@@ -206,6 +213,7 @@ def init():
         game_board.set((r,c), food_symbol)
         i += 1
 
+    quit.cleaning_up = False
 
     return game_board
 
@@ -215,9 +223,19 @@ def signal_handler(signal, frame):
 def quit(signal=None, message=""):
     global game_over
 
+    if quit.cleaning_up == True:
+        return
+    quit.cleaning_up = True
     game_over = True
+
+    # Restore terminal settings to how they were before.
     end_alternate_screen()
-    sys.stdout.write(message)
+    termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, orig_term_settings)
+    fcntl.fcntl(sys.stdin, fcntl.F_SETFL, orig_flags)
+
+    if message:
+        sys.stdout.write(message + '\n')
+
     if signal:
         os._exit(0)
     else:
