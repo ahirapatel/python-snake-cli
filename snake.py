@@ -151,28 +151,27 @@ def update_game_board(board):
     def add_position((a,b), (c,d)):
         return (a+c, b+d)
 
-    new_head = add_position(head, movement_dicts[movement])
-    if board.is_valid_coord(new_head) and board.get(new_head) != snake_symbol:
-        # Tail is removed each turn, and head moves in appropriate direction.
-        removed_tail = snake_body[-1]
-        del snake_body[-1]
-        game_board.set(removed_tail, empty_symbol)
+    # NOTE: Snake head moves and keeps moving if food present, but maybe I want
+    #       to make it so the user can choose where to move after food is eaten
+    # Move the head in the right direction, then keep going if food is present.
+    food_or_move = True
+    while food_or_move:
+        new_head = add_position(head, movement_dicts[movement])
+        # Check if snake is within the board, and if it collides with itself.
+        if board.is_valid_coord(new_head) and board.get(new_head) != snake_symbol:
+            # Food is present so keep moving the head by relooping.
+            food_or_move = (game_board.get(new_head) == food_symbol)
 
-        snake_body.insert(0, new_head)
-
-        # TODO: Loop in the case of where two foods are next to each other.
-        # TODO: Make the above insert, this if, and below game_board access
-        #       look less weirdly organized.
-        if game_board.get(new_head) == food_symbol:
-            game_board.set(new_head, snake_symbol)
-            new_head = add_position(new_head, movement_dicts[movement])
             snake_body.insert(0, new_head)
+            game_board.set(new_head, snake_symbol)
+            head = new_head
+        else:
+            quit(message="Game over!")
 
-        game_board.set(new_head, snake_symbol)
-
-        head = new_head
-    else:
-        quit(message="Game over!")
+    # Tail is removed each turn.
+    removed_tail = snake_body[-1]
+    del snake_body[-1]
+    game_board.set(removed_tail, empty_symbol)
 
 def draw_game_board(board):
     sys.stdout.write(str(board))
