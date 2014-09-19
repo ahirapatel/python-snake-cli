@@ -20,10 +20,6 @@ def get_terminal_height():
 def get_terminal_width():
     return get_terminal_dimensions()[1]
 
-# Moves down a line after moving up.
-def clear_curr_line():
-    sys.stdout.write(' '.ljust(get_terminal_width()) + '\r')
-
 # This is used to print output to the alternative screen buffer.
 # Programs like 'man' and 'tmux' print to it, making it so that
 # when you leave them, their output is gone and you are back to
