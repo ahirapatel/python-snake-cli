@@ -158,7 +158,7 @@ def update_game_board(board):
         return (a+c, b+d)
 
     new_head = add_position(head, movement_dicts[movement])
-    if board.is_valid_coord(new_head):
+    if board.is_valid_coord(new_head) and board.get(new_head) != snake_symbol:
         # Tail is removed each turn, and head moves in appropriate direction.
         removed_tail = snake_body[-1]
         del snake_body[-1]
