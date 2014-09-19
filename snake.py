@@ -20,15 +20,6 @@ def get_terminal_height():
 def get_terminal_width():
     return get_terminal_dimensions()[1]
 
-def move_to_start_of_line():
-    sys.stdout.write("\r")
-
-def move_up_one_line():
-    sys.stdout.write("\033[1A")
-
-def move_up_n_lines(n):
-    sys.stdout.write("\033[1A".ljust(n))
-
 # Moves down a line after moving up.
 def clear_curr_line():
     sys.stdout.write(' '.ljust(get_terminal_width()) + '\r')
