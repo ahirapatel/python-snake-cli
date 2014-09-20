@@ -37,6 +37,7 @@ def movement_listener():
     global game_over
     global orig_term_settings
     global orig_flags
+    global key_quit
 
     arrow_key_start = '\x1b'
 
@@ -56,9 +57,11 @@ def movement_listener():
             res = p.poll(100)
             ch = sys.stdin.read(1) if res else None
             if (ch and ord(ch) == 3):  # Ctrl-c or game ended.
-                quit(message="User quit")
+                key_quit = True
+                break
             elif game_over:
                 break
+
             if arrow_key_start == ch:
                 try:
                     ch += sys.stdin.read(2)
@@ -122,12 +125,15 @@ class Board(object):
 # TODO: Make everything pretty colors.
 # TODO: make head draw as a different character.
 num_food = 35
+# TODO: Spawn things on board as previous part is eaten.
 movement = "up"
 movement_dicts = {"up" : (-1,0), "down" : (1,0), "left" : (0,-1), "right" : (0,1)}
 head = (0,0)
 snake_body = []
 
 game_over = False
+sig_quit = False
+key_quit = False
 
 snake_symbol = 'o'
 empty_symbol = ' '
@@ -136,17 +142,31 @@ wall_symbol = '|'
 
 orig_term_settings = None
 orig_flags = None
+
+def exit_as_needed():
+    global game_over
+    if game_over:
+        quit(message="Game Over!")
+    elif num_food == 0:
+        quit(message="You win!")
+    elif sig_quit:
+        quit(kill_all=True, message="Process was politely terminated.")
+    elif key_quit:
+        quit(message="User quit")
+
+
 def play(board):
     while True:
-        if game_over:
-            break
+        exit_as_needed()
         update_game_board(board)
         draw_game_board(board)
         # TODO: Make speed based on parameter.
-        time.sleep(.2)
+        time.sleep(.1)
 
 def update_game_board(board):
     global head
+    global num_food
+    global game_over
 
     def add_position((a,b), (c,d)):
         return (a+c, b+d)
@@ -157,16 +177,19 @@ def update_game_board(board):
     food_or_move = True
     while food_or_move:
         new_head = add_position(head, movement_dicts[movement])
+
         # Check if snake is within the board, and if it collides with itself.
         if board.is_valid_coord(new_head) and board.get(new_head) != snake_symbol:
             # Food is present so keep moving the head by relooping.
             food_or_move = (game_board.get(new_head) == food_symbol)
-
+            num_food = num_food - 1 if food_or_move else num_food
+            # Place the new head.
             snake_body.insert(0, new_head)
             game_board.set(new_head, snake_symbol)
             head = new_head
         else:
-            quit(message="Game over!")
+            game_over = True
+            break
 
     # Tail is removed each turn.
     removed_tail = snake_body[-1]
@@ -204,15 +227,20 @@ def init():
     return game_board
 
 def signal_handler(signal, frame):
-    quit(signal)
+    global sig_quit
+    sig_quit = True
 
-def quit(signal=None, message=""):
+def quit(kill_all=None, message=""):
     global game_over
+    global key_quit
+    global sig_quit
 
     if quit.cleaning_up == True:
-        return
+        sys.exit(0)
     quit.cleaning_up = True
     game_over = True
+    key_quit = True
+    sig_quit = True
 
     # Restore terminal settings to how they were before.
     end_alternate_screen()
