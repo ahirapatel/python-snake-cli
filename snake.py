@@ -122,10 +122,16 @@ class Board(object):
         return bstr
 
 
-# TODO: Make everything pretty colors.
 # TODO: make head draw as a different character.
-num_food = 35
 # TODO: Spawn things on board as previous part is eaten.
+# TODO: Redraw only the parts of the board that change, eg the snake, because
+#       sometimes it seems the screen takes too long to print and it tears.
+GREEN = '\033[92m'
+YELLOW = '\033[93m'
+TEAL = '\033[36m'
+END = '\033[0m'
+
+num_food = 40
 movement = "up"
 movement_dicts = {"up" : (-1,0), "down" : (1,0), "left" : (0,-1), "right" : (0,1)}
 head = (0,0)
@@ -135,10 +141,10 @@ game_over = False
 sig_quit = False
 key_quit = False
 
-snake_symbol = 'o'
+snake_symbol = GREEN + 'o' + END
 empty_symbol = ' '
-food_symbol = '*'
-wall_symbol = '|'
+food_symbol = YELLOW + '*' + END
+wall_symbol = TEAL + '|' + END
 
 orig_term_settings = None
 orig_flags = None
@@ -198,6 +204,7 @@ def update_game_board(board):
 
 def draw_game_board(board):
     sys.stdout.write(str(board))
+    sys.stdout.flush()
 
 
 def init():
@@ -217,7 +224,6 @@ def init():
         r = random.randint(0, game_board.height()-1)
         c = random.randint(0, game_board.width()-1)
         coord = (r,c)
-        # TODO: check this isn't on top of the snake
         if not game_board.is_valid_coord(coord) or coord == head:
             continue
         game_board.set((r,c), food_symbol)
