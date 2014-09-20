@@ -216,8 +216,9 @@ def init():
     while i < num_food:
         r = random.randint(0, game_board.height()-1)
         c = random.randint(0, game_board.width()-1)
+        coord = (r,c)
         # TODO: check this isn't on top of the snake
-        if not game_board.is_valid_coord((r,c)):
+        if not game_board.is_valid_coord(coord) or coord == head:
             continue
         game_board.set((r,c), food_symbol)
         i += 1
