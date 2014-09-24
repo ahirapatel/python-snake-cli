@@ -40,6 +40,8 @@ def movement_listener():
     global key_quit
 
     arrow_key_start = '\x1b'
+    # The bytes that match up with the paired movement.
+    movement_dict = {'\x1b[A' : "up",'\x1b[B' : "down",'\x1b[C' : "right",'\x1b[D' : "left",}
 
     fd = sys.stdin.fileno()
     # Store settings for stdin, because we have to restore them later.
@@ -67,14 +69,8 @@ def movement_listener():
                     ch += sys.stdin.read(2)
                 except IOError:
                     continue        # There was no more data to read.
-                if ch == '\x1b[A':
-                    movement = "up"
-                elif ch == '\x1b[B':
-                    movement = "down"
-                elif ch == '\x1b[C':
-                    movement = "right"
-                elif ch == '\x1b[D':
-                    movement = "left"
+                # TODO: LOCK
+                movement = movement_dict.get(ch, movement)
     finally:
         # Restore our old settings for the terminal.
         termios.tcsetattr(fd, termios.TCSADRAIN, orig_term_settings)
