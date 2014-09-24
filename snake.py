@@ -225,8 +225,6 @@ def init():
         game_board.set((r,c), food_symbol)
         i += 1
 
-    quit.cleaning_up = False
-
     return game_board
 
 def signal_handler(signal, frame):
@@ -238,12 +236,7 @@ def quit(kill_all=None, message=""):
     global key_quit
     global sig_quit
 
-    if quit.cleaning_up == True:
-        sys.exit(0)
-    quit.cleaning_up = True
     game_over = True
-    key_quit = True
-    sig_quit = True
 
     # Restore terminal settings to how they were before.
     end_alternate_screen()
