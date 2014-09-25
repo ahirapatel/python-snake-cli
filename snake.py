@@ -179,37 +179,31 @@ def update_game_board(board):
     def add_position((a,b), (c,d)):
         return (a+c, b+d)
 
-    # NOTE: Snake head moves and keeps moving if food present, but maybe I want
-    #       to make it so the user can choose where to move after food is eaten
-    # TODO: Definitely have to change this. Can't eat a corner piece because
-    #       the snake will grow into the corner then and you die. Do a simple
-    #       if eaten: don't remove tail. Make sure to handle it in draw too.
     # Move the head in the right direction, then keep going if food is present.
-    food_or_move = True
-    while food_or_move:
-        new_head = add_position(head, movement_dicts[movement])
+    new_head = add_position(head, movement_dicts[movement])
+    # Check if snake is within the board, and if it collides with itself.
+    if board.is_valid_coord(new_head) and board.get(new_head) != snake_symbol:
+        # Food is present so keep moving the head by relooping.
+        food_consumed = (game_board.get(new_head) == food_symbol)
+        num_food = num_food - 1 if food_consumed else num_food
+        # Place the new head.
+        snake_body.insert(0, new_head)
+        game_board.set(new_head, snake_symbol)
+        head = new_head
+        # Tail is removed each turn no food is consumed.
+        if not food_consumed:
+            removed_tail = snake_body[-1]
+            del snake_body[-1]
+            game_board.set(removed_tail, empty_symbol)
+    else:
+        game_over = True
 
-        # Check if snake is within the board, and if it collides with itself.
-        if board.is_valid_coord(new_head) and board.get(new_head) != snake_symbol:
-            # Food is present so keep moving the head by relooping.
-            food_or_move = (game_board.get(new_head) == food_symbol)
-            num_food = num_food - 1 if food_or_move else num_food
-            # Place the new head.
-            snake_body.insert(0, new_head)
-            game_board.set(new_head, snake_symbol)
-            head = new_head
-        else:
-            game_over = True
-            break
 
-    # Tail is removed each turn.
-    removed_tail = snake_body[-1]
-    del snake_body[-1]
-    game_board.set(removed_tail, empty_symbol)
 
 def draw_game_board(board):
     game_board.draw(head, snake_symbol)
-    game_board.draw(removed_tail, empty_symbol)
+    if removed_tail:
+        game_board.draw(removed_tail, empty_symbol)
 
 def init():
     import random
