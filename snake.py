@@ -8,6 +8,7 @@ import time
 import signal
 import fcntl
 import select
+from random import randint
 
 # Returns (height,width)
 def get_terminal_dimensions():
@@ -185,7 +186,9 @@ def update_game_board(board):
     if board.is_valid_coord(new_head) and board.get(new_head) != snake_symbol:
         # Food is present so keep moving the head by relooping.
         food_consumed = (game_board.get(new_head) == food_symbol)
-        num_food = num_food - 1 if food_consumed else num_food
+        if food_consumed:
+            num_food = num_food - 1
+            spawn_new_food(game_board)
         # Place the new head.
         snake_body.insert(0, new_head)
         game_board.set(new_head, snake_symbol)
@@ -195,9 +198,22 @@ def update_game_board(board):
             removed_tail = snake_body[-1]
             del snake_body[-1]
             game_board.set(removed_tail, empty_symbol)
+        else:
+            removed_tail = None
     else:
         game_over = True
 
+def spawn_new_food(game_board):
+    spawned = False
+    while not spawned:
+        r = randint(0, game_board.height()-1)
+        c = randint(0, game_board.width()-1)
+        coord = (r,c)
+        if not game_board.is_valid_coord(coord) or coord in snake_body:
+            continue
+        game_board.set(coord, food_symbol)
+        game_board.draw(coord, food_symbol)
+        spawned = True
 
 
 def draw_game_board(board):
@@ -206,7 +222,6 @@ def draw_game_board(board):
         game_board.draw(removed_tail, empty_symbol)
 
 def init():
-    import random
     global head
     global removed_tail
 
@@ -219,15 +234,7 @@ def init():
     game_board.set(head, snake_symbol)
 
     # TODO: Make num_food based on board size
-    i = 0
-    while i < num_food:
-        r = random.randint(0, game_board.height()-1)
-        c = random.randint(0, game_board.width()-1)
-        coord = (r,c)
-        if not game_board.is_valid_coord(coord) or coord == head:
-            continue
-        game_board.set((r,c), food_symbol)
-        i += 1
+    spawn_new_food(game_board)
 
     # Draw the initial board, and then only redraw the changes.
     game_board.draw_initial_board()
