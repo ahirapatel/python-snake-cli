@@ -107,7 +107,7 @@ class Board(object):
         return self.columns
     def height(self):
         return self.rows
-    def __str__(self):
+    def initial_board(self):
         bstr = ""
         for rows in self.board:
             for col in rows:
@@ -116,6 +116,26 @@ class Board(object):
             # The \r was unneeded until I used the movement_listener function.
             bstr += '\n\r'
         return bstr
+
+    def draw(self, (r,c), symbol):
+        self.board[r][c] = symbol
+        #move_up_n_lines(self.rows - r)
+        sys.stdout.write("\033[{0};{1}f".format(r+1,c*2+1))
+        sys.stdout.write(symbol + empty_symbol)
+        sys.stdout.write("\033[{0};{1}f".format(self.rows+1,self.columns))
+        sys.stdout.flush()
+
+
+    def __str__(self):
+        #bstr = ""
+        #for rows in self.board:
+        #    for col in rows:
+        #        # empty_symbol is for char width and line height discrepancy.
+        #        bstr += col + empty_symbol
+        #    # The \r was unneeded until I used the movement_listener function.
+        #    bstr += '\n\r'
+        #return bstr
+        pass
 
 
 # TODO: make head draw as a different character.
@@ -131,6 +151,7 @@ num_food = 40
 movement = "up"
 movement_dicts = {"up" : (-1,0), "down" : (1,0), "left" : (0,-1), "right" : (0,1)}
 head = (0,0)
+tail = (0,0)
 snake_body = []
 
 game_over = False
@@ -167,6 +188,7 @@ def play(board):
 
 def update_game_board(board):
     global head
+    global tail
     global num_food
     global game_over
 
@@ -198,19 +220,24 @@ def update_game_board(board):
     del snake_body[-1]
     game_board.set(removed_tail, empty_symbol)
 
-def draw_game_board(board):
-    sys.stdout.write(str(board))
-    sys.stdout.flush()
+    game_board.draw(head, snake_symbol)
+    game_board.draw(removed_tail, empty_symbol)
 
+def draw_game_board(board):
+    #sys.stdout.write(str(board))
+    #sys.stdout.flush()
+    pass
 
 def init():
     import random
     global head
+    global tail
 
     game_board = Board(get_terminal_dimensions())
 
     # TODO: I don't like this.
     head = (game_board.height() / 2, game_board.width() / 2)
+    tail = head
     snake_body.append(head)
     game_board.set(head, snake_symbol)
 
@@ -224,6 +251,9 @@ def init():
             continue
         game_board.set((r,c), food_symbol)
         i += 1
+
+    # Draw the initial board, and then only redraw the changes.
+    sys.stdout.write(game_board.initial_board())
 
     return game_board
 
