@@ -20,6 +20,11 @@ def get_terminal_height():
 def get_terminal_width():
     return get_terminal_dimensions()[1]
 
+# The terminal coordinates start at (1,1) so add 1 to properly work with
+# our 0 indexed lists.
+def go_to_terminal_coords(r,c):
+    sys.stdout.write("\033[{0};{1}f".format(r+1,c+1))
+
 # This is used to print output to the alternative screen buffer.
 # Programs like 'man' and 'tmux' print to it, making it so that
 # when you leave them, their output is gone and you are back to
@@ -107,41 +112,27 @@ class Board(object):
         return self.columns
     def height(self):
         return self.rows
-    def initial_board(self):
+    def draw_initial_board(self):
         bstr = ""
         for rows in self.board:
-            for col in rows:
-                # empty_symbol is for char width and line height discrepancy.
-                bstr += col + empty_symbol
-            # The \r was unneeded until I used the movement_listener function.
+            bstr += empty_symbol.join(rows)
             bstr += '\n\r'
-        return bstr
+            #for col in rows:
+            #    # empty_symbol is for char width and line height discrepancy.
+            #    bstr += col + empty_symbol
+            ## The \r was unneeded until I used the movement_listener function.
+            #bstr += '\n\r'
+        #return bstr
+        sys.stdout.write(bstr)
 
     def draw(self, (r,c), symbol):
-        self.board[r][c] = symbol
-        #move_up_n_lines(self.rows - r)
-        sys.stdout.write("\033[{0};{1}f".format(r+1,c*2+1))
-        sys.stdout.write(symbol + empty_symbol)
-        sys.stdout.write("\033[{0};{1}f".format(self.rows+1,self.columns))
-        sys.stdout.flush()
-
-
-    def __str__(self):
-        #bstr = ""
-        #for rows in self.board:
-        #    for col in rows:
-        #        # empty_symbol is for char width and line height discrepancy.
-        #        bstr += col + empty_symbol
-        #    # The \r was unneeded until I used the movement_listener function.
-        #    bstr += '\n\r'
-        #return bstr
-        pass
-
+        go_to_terminal_coords(r,c*2)                        # Go to location.
+        sys.stdout.write(symbol + empty_symbol)             # Write to location.
+        go_to_terminal_coords(self.rows, self.columns*2)    # Go to edge of terminal.
+        sys.stdout.flush()                                  # Flush to have it draw.
 
 # TODO: make head draw as a different character.
 # TODO: Spawn things on board as previous part is eaten.
-# TODO: Redraw only the parts of the board that change, eg the snake, because
-#       sometimes it seems the screen takes too long to print and it tears.
 GREEN = '\033[92m'
 YELLOW = '\033[93m'
 TEAL = '\033[36m'
@@ -151,7 +142,7 @@ num_food = 40
 movement = "up"
 movement_dicts = {"up" : (-1,0), "down" : (1,0), "left" : (0,-1), "right" : (0,1)}
 head = (0,0)
-tail = (0,0)
+removed_tail = (0,0)
 snake_body = []
 
 game_over = False
@@ -188,7 +179,7 @@ def play(board):
 
 def update_game_board(board):
     global head
-    global tail
+    global removed_tail
     global num_food
     global game_over
 
@@ -220,24 +211,20 @@ def update_game_board(board):
     del snake_body[-1]
     game_board.set(removed_tail, empty_symbol)
 
+def draw_game_board(board):
     game_board.draw(head, snake_symbol)
     game_board.draw(removed_tail, empty_symbol)
-
-def draw_game_board(board):
-    #sys.stdout.write(str(board))
-    #sys.stdout.flush()
-    pass
 
 def init():
     import random
     global head
-    global tail
+    global removed_tail
 
     game_board = Board(get_terminal_dimensions())
 
     # TODO: I don't like this.
     head = (game_board.height() / 2, game_board.width() / 2)
-    tail = head
+    removed_tail = head
     snake_body.append(head)
     game_board.set(head, snake_symbol)
 
@@ -253,7 +240,7 @@ def init():
         i += 1
 
     # Draw the initial board, and then only redraw the changes.
-    sys.stdout.write(game_board.initial_board())
+    game_board.draw_initial_board()
 
     return game_board
 
