@@ -115,14 +115,7 @@ class Board(object):
     def draw_initial_board(self):
         bstr = ""
         for rows in self.board:
-            bstr += empty_symbol.join(rows)
-            bstr += '\n\r'
-            #for col in rows:
-            #    # empty_symbol is for char width and line height discrepancy.
-            #    bstr += col + empty_symbol
-            ## The \r was unneeded until I used the movement_listener function.
-            #bstr += '\n\r'
-        #return bstr
+            bstr += empty_symbol.join(rows) + "\n\r"
         sys.stdout.write(bstr)
 
     def draw(self, (r,c), symbol):
@@ -188,6 +181,9 @@ def update_game_board(board):
 
     # NOTE: Snake head moves and keeps moving if food present, but maybe I want
     #       to make it so the user can choose where to move after food is eaten
+    # TODO: Definitely have to change this. Can't eat a corner piece because
+    #       the snake will grow into the corner then and you die. Do a simple
+    #       if eaten: don't remove tail. Make sure to handle it in draw too.
     # Move the head in the right direction, then keep going if food is present.
     food_or_move = True
     while food_or_move:
