@@ -41,8 +41,6 @@ def end_alternate_screen():
 def movement_listener():
     global movement
     global game_over
-    global orig_term_settings
-    global orig_flags
     global key_quit
 
     arrow_key_start = '\x1b'
@@ -52,10 +50,12 @@ def movement_listener():
     fd = sys.stdin.fileno()
     # Store settings for stdin, because we have to restore them later.
     orig_term_settings = termios.tcgetattr(fd)
+    quit.orig_term_settings = orig_term_settings
     # No echo and have stdin work on a char-by-char basis.
     tty.setraw(fd)
     # Keep options for stdin, then add the nonblocking flag to it.
     orig_flags = fcntl.fcntl(sys.stdin, fcntl.F_GETFL)
+    quit.orig_flags = orig_flags
     fcntl.fcntl(sys.stdin, fcntl.F_SETFL, orig_flags | os.O_NONBLOCK)
     # Poll object.
     p = select.poll()
@@ -86,7 +86,7 @@ class Board(object):
     def __init__(self, (board_rows, board_cols)):
         self.rows = board_rows - 1
         # Terminal line heights are greater than character widths, so correct
-        # for this by halving columns and padding empty_symbol in __str__()
+        # for this by halving columns and padding with empty_symbol.
         self.columns = board_cols / 2
         # game_board[y_coord][x_coord] is how I made this work. No real reason.
         # TODO: Change to (x,y), because I don't like it this way.
@@ -156,9 +156,6 @@ snake_symbol = GREEN + 'o' + END
 empty_symbol = ' '
 food_symbol = YELLOW + '*' + END
 wall_symbol = BLUEBACK + GREEN + '|' + END
-
-orig_term_settings = None
-orig_flags = None
 
 def exit_as_needed():
     global game_over
@@ -263,8 +260,8 @@ def quit(kill_all=None, message=""):
 
     # Restore terminal settings to how they were before.
     end_alternate_screen()
-    termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, orig_term_settings)
-    fcntl.fcntl(sys.stdin, fcntl.F_SETFL, orig_flags)
+    termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, quit.orig_term_settings)
+    fcntl.fcntl(sys.stdin, fcntl.F_SETFL, quit.orig_flags)
 
     if message:
         sys.stdout.write(message + '\n')
