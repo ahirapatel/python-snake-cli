@@ -142,6 +142,8 @@ BLUEBACK = "\x1b[44m"
 END = '\033[0m'
 
 num_food = 40
+
+old_movement = "up"
 movement = "up"
 movement_dicts = {"up" : (-1,0), "down" : (1,0), "left" : (0,-1), "right" : (0,1)}
 head = (0,0)
@@ -182,9 +184,16 @@ def update_game_board(board):
     global removed_tail
     global num_food
     global game_over
+    global movement
+    global old_movement
 
     def add_position((a,b), (c,d)):
         return (a+c, b+d)
+
+    if (old_movement, movement) in [("left","right"), ("right","left"), ("up","down"), ("down","up")] and len(snake_body) != 1:
+        movement = old_movement
+    else:
+        old_movement = movement
 
     # Move the head in the right direction, then keep going if food is present.
     new_head = add_position(head, movement_dicts[movement])
