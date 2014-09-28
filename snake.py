@@ -118,6 +118,15 @@ class Board(object):
         for rows in self.board:
             bstr += empty_symbol.join(rows) + "\n\r"
         sys.stdout.write(bstr)
+        # Since I do skip drawing every other character spot on the terminal
+        # to make the map feel more even, I can't just print the walls from
+        # list or else there will be gaps.
+        horiz_walls = ''.join(wall_symbol * (self.columns*2-1))
+        go_to_terminal_coords(0,0)
+        sys.stdout.write(horiz_walls)           # Top wall.
+        go_to_terminal_coords(self.rows-1, 0)
+        sys.stdout.write(horiz_walls)           # Bottom wall.
+        sys.stdout.flush()
 
     def draw(self, (r,c), symbol):
         go_to_terminal_coords(r,c*2)                        # Go to location.
@@ -126,10 +135,10 @@ class Board(object):
         sys.stdout.flush()                                  # Flush to have it draw.
 
 # TODO: make head draw as a different character.
-# TODO: Spawn things on board as previous part is eaten.
 GREEN = '\033[92m'
 YELLOW = '\033[93m'
 TEAL = '\033[36m'
+BLUEBACK = "\x1b[44m"
 END = '\033[0m'
 
 num_food = 40
@@ -146,7 +155,7 @@ key_quit = False
 snake_symbol = GREEN + 'o' + END
 empty_symbol = ' '
 food_symbol = YELLOW + '*' + END
-wall_symbol = TEAL + '|' + END
+wall_symbol = BLUEBACK + GREEN + '|' + END
 
 orig_term_settings = None
 orig_flags = None
