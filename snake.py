@@ -38,14 +38,13 @@ def end_alternate_screen():
     sys.stdout.write("\033[?1049l")
     sys.stdout.flush()
 
-def movement_listener():
-    global movement
+def movement_listener(snake):
     global game_over
     global key_quit
 
     arrow_key_start = '\x1b'
     # The bytes that match up with the paired movement.
-    movement_dict = {'\x1b[A' : "up",'\x1b[B' : "down",'\x1b[C' : "right",'\x1b[D' : "left",}
+    bytes_to_movement_dict = {'\x1b[A' : "up",'\x1b[B' : "down",'\x1b[C' : "right",'\x1b[D' : "left"}
 
     fd = sys.stdin.fileno()
     # Store settings for stdin, because we have to restore them later.
@@ -75,13 +74,13 @@ def movement_listener():
                     ch += sys.stdin.read(2)
                 except IOError:
                     continue        # There was no more data to read.
-                # TODO: LOCK
-                movement = movement_dict.get(ch, movement)
+                snake.set_movement(bytes_to_movement_dict.get(ch))
     finally:
         # Restore our old settings for the terminal.
         termios.tcsetattr(fd, termios.TCSADRAIN, orig_term_settings)
         fcntl.fcntl(sys.stdin, fcntl.F_SETFL, orig_flags)
 
+# TODO: Add board drawing/printing functions to the Board class.
 class Board(object):
     def __init__(self, (board_rows, board_cols)):
         self.rows = board_rows - 1
@@ -107,8 +106,7 @@ class Board(object):
         r, c = coord
         self.board[r][c] = value
     def is_valid_coord(self, (a,b)):
-        return a >= 1 and a < self.height()-1 and b >= 1 and b < self.width()-1 \
-                and self.get((a,b)) != wall_symbol
+        return a >= 1 and a < self.height()-1 and b >= 1 and b < self.width()-1
     def width(self):
         return self.columns
     def height(self):
@@ -134,6 +132,71 @@ class Board(object):
         go_to_terminal_coords(self.rows, self.columns*2)    # Go to edge of terminal.
         sys.stdout.flush()                                  # Flush to have it draw.
 
+class Snake(object):
+    movement_dicts = {"up" : (-1,0), "down" : (1,0), "left" : (0,-1), "right" : (0,1)}
+
+    def __init__(self, head):
+        self.movement = "up"                # Current direction.
+        self.removed_tail = head            # Where the tail used to be.
+        self.head = head                    # Where the head is currently.
+        self.snake_body = [head]            # The parts of the snake body.
+        self.just_eaten = empty_symbol      # What the snake ate this tick.
+        self.lock = threading.Lock()        # Lock for self.movement read/write.
+        # TODO: Can probably make this redundant, but do I like this way better?
+        self.movement_processed = True      # To ensure we don't process.
+
+    def move(self):
+        def add_position((a,b), (c,d)):
+            return (a+c, b+d)
+
+        self.lock.acquire()
+
+        # Move the head to its new position.
+        self.head = add_position(self.head, self.movement_dicts[self.movement])
+        self.snake_body.insert(0, self.head)
+        # Remove the tail.
+        self.removed_tail = self.snake_body[-1]
+        del self.snake_body[-1]
+        # This movement was processed.
+        self.movement_processed = True
+
+        self.lock.release()
+        return self.head
+
+    def consume(self, target):
+        # If food is eaten, then grow by adding the tail in the spot from
+        # where it was previously removed.
+        self.just_eaten = target
+        if target == food_symbol:
+            self.snake_body.append(self.removed_tail)
+
+    def is_hungry(self):
+        return self.just_eaten != food_symbol
+
+    def is_dead(self):
+        return self.just_eaten in [wall_symbol, snake_symbol]
+
+    def set_movement(self, new_movement):
+        # The snake body shouldn't be able to turn the direction it came from,
+        # So ignore those key presses.
+        # TODO: Can probably neatify this.
+        self.lock.acquire()
+        if self.movement_processed:
+            self.movement_processed = False
+            opposite_list = [("left", "right"), ("right", "left"), ("down", "up"), ("up", "down")]
+            move_pair = (self.movement, new_movement)
+            if not( (move_pair in opposite_list and len(self.snake_body) != 1) or new_movement is None ):
+                self.movement = new_movement
+        self.lock.release()
+
+    def get_head(self):
+        return self.snake_body[0]
+
+    def get_old_tail(self):
+        return self.removed_tail
+
+
+# TODO: Less globals. Soon.
 # TODO: make head draw as a different character.
 GREEN = '\033[92m'
 YELLOW = '\033[93m'
@@ -142,13 +205,6 @@ BLUEBACK = "\x1b[44m"
 END = '\033[0m'
 
 num_food = 40
-
-old_movement = "up"
-movement = "up"
-movement_dicts = {"up" : (-1,0), "down" : (1,0), "left" : (0,-1), "right" : (0,1)}
-head = (0,0)
-removed_tail = (0,0)
-snake_body = []
 
 game_over = False
 sig_quit = False
@@ -171,50 +227,31 @@ def exit_as_needed():
         quit(message="User quit")
 
 
-def play(board):
+def play(board, snake):
     while True:
         exit_as_needed()
-        update_game_board(board)
-        draw_game_board(board)
+        update_game_board(board, snake)
+        draw_game_board(board, snake)
         # TODO: Make speed based on parameter.
         time.sleep(.1)
 
-def update_game_board(board):
-    global head
-    global removed_tail
+def update_game_board(board, snake):
     global num_food
     global game_over
-    global movement
-    global old_movement
-
-    def add_position((a,b), (c,d)):
-        return (a+c, b+d)
-
-    if (old_movement, movement) in [("left","right"), ("right","left"), ("up","down"), ("down","up")] and len(snake_body) != 1:
-        movement = old_movement
-    else:
-        old_movement = movement
 
     # Move the head in the right direction, then keep going if food is present.
-    new_head = add_position(head, movement_dicts[movement])
+    new_head = snake.move()
+
+    # TODO: Make better flowing by passing snake the game board, or game board the snake.
+    game_board.set(snake.get_old_tail(), empty_symbol)
+    snake.consume(game_board.get(new_head))
+    game_board.set(new_head, snake_symbol)
+
     # Check if snake is within the board, and if it collides with itself.
-    if board.is_valid_coord(new_head) and board.get(new_head) != snake_symbol:
-        # Food is present so keep moving the head by relooping.
-        food_consumed = (game_board.get(new_head) == food_symbol)
-        if food_consumed:
+    if board.is_valid_coord(new_head) and not snake.is_dead():
+        if not snake.is_hungry():
             num_food = num_food - 1
             spawn_new_food(game_board)
-        # Place the new head.
-        snake_body.insert(0, new_head)
-        game_board.set(new_head, snake_symbol)
-        head = new_head
-        # Tail is removed each turn no food is consumed.
-        if not food_consumed:
-            removed_tail = snake_body[-1]
-            del snake_body[-1]
-            game_board.set(removed_tail, empty_symbol)
-        else:
-            removed_tail = None
     else:
         game_over = True
 
@@ -224,29 +261,25 @@ def spawn_new_food(game_board):
         r = randint(0, game_board.height()-1)
         c = randint(0, game_board.width()-1)
         coord = (r,c)
-        if not game_board.is_valid_coord(coord) or coord in snake_body:
+        if not game_board.is_valid_coord(coord) or game_board.get(coord) == snake_symbol:
             continue
         game_board.set(coord, food_symbol)
         game_board.draw(coord, food_symbol)
         spawned = True
 
-
-def draw_game_board(board):
-    game_board.draw(head, snake_symbol)
-    if removed_tail:
-        game_board.draw(removed_tail, empty_symbol)
+# TODO: Just make game_board have a queue of things to draw, then call it instead
+# of this.
+def draw_game_board(board, snake):
+    if snake.is_hungry():
+        game_board.draw(snake.get_old_tail(), empty_symbol)
+    game_board.draw(snake.get_head(), snake_symbol)
 
 def init():
-    global head
-    global removed_tail
-
     game_board = Board(get_terminal_dimensions())
 
     # TODO: I don't like this.
-    head = (game_board.height() / 2, game_board.width() / 2)
-    removed_tail = head
-    snake_body.append(head)
-    game_board.set(head, snake_symbol)
+    snake = Snake((game_board.height() / 2, game_board.width() / 2))
+    game_board.set(snake.get_head(), snake_symbol)
 
     # TODO: Make num_food based on board size
     spawn_new_food(game_board)
@@ -254,7 +287,7 @@ def init():
     # Draw the initial board, and then only redraw the changes.
     game_board.draw_initial_board()
 
-    return game_board
+    return game_board, snake
 
 def signal_handler(signal, frame):
     global sig_quit
@@ -285,8 +318,9 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-    key_listener = threading.Thread(target = movement_listener)
+    game_board, snake = init()
+
+    key_listener = threading.Thread(target = movement_listener, args=(snake,))
     key_listener.start()
 
-    game_board = init()
-    play(game_board)
+    play(game_board, snake)
