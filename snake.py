@@ -85,32 +85,38 @@ class Board(object):
     def __init__(self, (board_rows, board_cols)):
         self.rows = board_rows - 1
         # Terminal line heights are greater than character widths, so correct
-        # for this by halving columns and padding with empty_symbol.
+        # for this by halving columns and padding with grid_symbol.
         self.columns = board_cols / 2
         # game_board[y_coord][x_coord] is how I made this work. No real reason.
         # TODO: Change to (x,y), because I don't like it this way.
-        self.board = [([empty_symbol] * self.columns) for x in xrange(self.rows)]
+        self.board = [([grid_symbol] * self.columns) for x in xrange(self.rows)]
         self.board[0] = [wall_symbol] * self.columns
         self.board[-1] = [wall_symbol] * self.columns
         for columns in self.board:
             columns[0] = wall_symbol
             columns[-1] = wall_symbol
+
     def get(self, coord):
         if len(coord) != 2:
             raise Exception # TODO: An actual exception
         r, c = coord
         return self.board[r][c]
+
     def set(self, coord, value):
         if len(coord) != 2:
             raise Exception # TODO: An actual exception
         r, c = coord
         self.board[r][c] = value
+
     def is_valid_coord(self, (a,b)):
         return a >= 1 and a < self.height()-1 and b >= 1 and b < self.width()-1
+
     def width(self):
         return self.columns
+
     def height(self):
         return self.rows
+
     def draw_initial_board(self):
         bstr = ""
         for rows in self.board:
@@ -140,7 +146,7 @@ class Snake(object):
         self.removed_tail = head            # Where the tail used to be.
         self.head = head                    # Where the head is currently.
         self.snake_body = [head]            # The parts of the snake body.
-        self.just_eaten = empty_symbol      # What the snake ate this tick.
+        self.just_eaten = grid_symbol       # What the snake ate this tick.
         self.lock = threading.Lock()        # Lock for self.movement read/write.
         # TODO: Can probably make this redundant, but do I like this way better?
         self.movement_processed = True      # To ensure we don't process.
@@ -212,6 +218,7 @@ key_quit = False
 
 snake_symbol = GREEN + 'o' + END
 empty_symbol = ' '
+grid_symbol = '.'
 food_symbol = YELLOW + '*' + END
 wall_symbol = BLUEBACK + GREEN + '|' + END
 
@@ -243,7 +250,7 @@ def update_game_board(board, snake):
     new_head = snake.move()
 
     # TODO: Make better flowing by passing snake the game board, or game board the snake.
-    game_board.set(snake.get_old_tail(), empty_symbol)
+    game_board.set(snake.get_old_tail(), grid_symbol)
     snake.consume(game_board.get(new_head))
     game_board.set(new_head, snake_symbol)
 
@@ -271,7 +278,7 @@ def spawn_new_food(game_board):
 # of this.
 def draw_game_board(board, snake):
     if snake.is_hungry():
-        game_board.draw(snake.get_old_tail(), empty_symbol)
+        game_board.draw(snake.get_old_tail(), grid_symbol)
     game_board.draw(snake.get_head(), snake_symbol)
 
 def init():
