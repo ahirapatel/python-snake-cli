@@ -134,9 +134,12 @@ class Board(object):
 
     def draw(self, (r,c), symbol):
         go_to_terminal_coords(r,c*2)                        # Go to location.
-        sys.stdout.write(symbol + empty_symbol)             # Write to location.
+        sys.stdout.write(symbol)                            # Write to location.
         go_to_terminal_coords(self.rows, self.columns*2)    # Go to edge of terminal.
         sys.stdout.flush()                                  # Flush to have it draw.
+
+    def draw_no_gaps(self, coord, symbol):
+        self.draw(coord, symbol + symbol)
 
 class Snake(object):
     movement_dicts = {"up" : (-1,0), "down" : (1,0), "left" : (0,-1), "right" : (0,1)}
@@ -204,6 +207,7 @@ class Snake(object):
 
 # TODO: Less globals. Soon.
 # TODO: make head draw as a different character.
+# TODO: Looks terrible on light backgrounds.
 GREEN = '\033[92m'
 YELLOW = '\033[93m'
 TEAL = '\033[36m'
@@ -268,11 +272,67 @@ def spawn_new_food(game_board):
         r = randint(0, game_board.height()-1)
         c = randint(0, game_board.width()-1)
         coord = (r,c)
-        if not game_board.is_valid_coord(coord) or game_board.get(coord) == snake_symbol:
+        if not game_board.is_valid_coord(coord) or game_board.get(coord) in [snake_symbol, wall_symbol]:
             continue
         game_board.set(coord, food_symbol)
         game_board.draw(coord, food_symbol)
         spawned = True
+
+# A normal game of snake is pretty easy, just sweep the board from left to right.
+# So let's attempt to make it harder a wee bit.
+def spawn_obstacle(game_board):
+    # TODO: Food can become impossible to reach with the obstacles.
+    # TODO: Moving obstacles.
+    # Just draw the obstacle as below (add a list of strings) to have it as
+    # an obstacle on the map. Note that they will be stretched out because
+    # 2 terminal columns = 1 game column and 1 terminal row == 1 game row.
+    # It looks a little weird because of this though.
+    obstacles = [   ["x" * 25],
+                    ["x"] * 35,
+                    ["xxxxx",
+                     "  x  ",
+                     "  x  "], # T symbol
+                    ["   xxx   ",
+                     "  x  x xx",
+                     "xxx  x   ",
+                     "     xxx "], # I have no idea what this is
+                    ["x         x",
+                     " x       x ",
+                     "  xx x xx  ",
+                     " x       x ",
+                     "x         x"], # No idea part two.
+                    ["    xx        ",
+                     "  xx    xxxxx ",
+                     "xx    xx     x",
+                     "x     x      x",
+                     "xx     x    xx",
+                     " xx        xx ",
+                     "  xx      xx  ",
+                     "    xxxxxx    "] # Spiral thingy.
+                ]
+    def obstacle_validate((r,c), obs):
+        for y, curr_row in enumerate(obs):
+            for x, curr_char in enumerate(curr_row):
+                if not game_board.is_valid_coord((y+r,x+c)) or game_board.get((y+r,x+c)) in [snake_symbol, food_symbol, wall_symbol]:
+                    return False
+        return True
+
+    def obstacle_make((r,c), obs):
+        for y, curr_row in enumerate(obs):
+            for x, curr_char in enumerate(curr_row):
+                if curr_char == 'x':
+                    game_board.set((y+r,x+c), wall_symbol)
+                    game_board.draw_no_gaps((y+r,x+c), wall_symbol)
+
+    location_found = False
+    while not location_found:
+        r = randint(0, game_board.height()-1)
+        c = randint(0, game_board.width()-1)
+        obs_idx = randint(0, len(obstacles)-1)
+        coord = (r,c)
+        location_found = obstacle_validate(coord, obstacles[obs_idx])
+        if location_found:
+            obstacle_make(coord, obstacles[obs_idx])
 
 # TODO: Just make game_board have a queue of things to draw, then call it instead
 # of this.
@@ -288,11 +348,14 @@ def init():
     snake = Snake((game_board.height() / 2, game_board.width() / 2))
     game_board.set(snake.get_head(), snake_symbol)
 
-    # TODO: Make num_food based on board size
-    spawn_new_food(game_board)
-
     # Draw the initial board, and then only redraw the changes.
     game_board.draw_initial_board()
+
+    # TODO: Make num_food based on board size
+    spawn_new_food(game_board)
+    # TODO: Have something to stop spawning walls, not an arbitrary number.
+    for i in xrange(25):
+        spawn_obstacle(game_board)
 
     return game_board, snake
 
@@ -321,6 +384,10 @@ def quit(kill_all=None, message=""):
         sys.exit(0)
 
 if __name__ == "__main__":
+    # TODO: Getting to the setraw can take too long due to the obstacles,
+    #       so setraw immediately here, or make a drawing queue and draw after
+    #       setraw has been called. An arrow key or something can be printed
+    #       messing up our ever so delicate alignment.
     start_alternate_screen()
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
