@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 import os
 import sys
 import termios
@@ -82,14 +82,18 @@ def movement_listener(snake):
 
 # TODO: Add board drawing/printing functions to the Board class.
 class Board(object):
-    def __init__(self, (board_rows, board_cols)):
+    def __init__(self, coord):
+        if len(coord) != 2:
+            raise Exception # TODO: An actual exception
+        board_rows, board_cols = coord
+
         self.rows = board_rows - 1
         # Terminal line heights are greater than character widths, so correct
         # for this by halving columns and padding with grid_symbol.
-        self.columns = board_cols / 2
+        self.columns = board_cols // 2
         # game_board[y_coord][x_coord] is how I made this work. No real reason.
         # TODO: Change to (x,y), because I don't like it this way.
-        self.board = [([grid_symbol] * self.columns) for x in xrange(self.rows)]
+        self.board = [([grid_symbol] * self.columns) for x in range(self.rows)]
         self.board[0] = [wall_symbol] * self.columns
         self.board[-1] = [wall_symbol] * self.columns
         for columns in self.board:
@@ -108,7 +112,10 @@ class Board(object):
         r, c = coord
         self.board[r][c] = value
 
-    def is_valid_coord(self, (a,b)):
+    def is_valid_coord(self, coord):
+        if len(coord) != 2:
+            raise Exception # TODO: An actual exception
+        a, b = coord
         return a >= 1 and a < self.height()-1 and b >= 1 and b < self.width()-1
 
     def width(self):
@@ -132,7 +139,10 @@ class Board(object):
         sys.stdout.write(horiz_walls)           # Bottom wall.
         sys.stdout.flush()
 
-    def draw(self, (r,c), symbol):
+    def draw(self, coord, symbol):
+        if len(coord) != 2:
+            raise Exception # TODO: An actual exception
+        r, c = coord
         go_to_terminal_coords(r,c*2)                        # Go to location.
         sys.stdout.write(symbol)                            # Write to location.
         go_to_terminal_coords(self.rows, self.columns*2)    # Go to edge of terminal.
@@ -155,7 +165,11 @@ class Snake(object):
         self.movement_processed = True      # To ensure we don't process.
 
     def move(self):
-        def add_position((a,b), (c,d)):
+        def add_position(coord1, coord2):
+            if len(coord1) != 2 or len(coord2) != 2:
+                raise Exception # TODO: An actual exception
+            a, b = coord1
+            c, d = coord2
             return (a+c, b+d)
 
         self.lock.acquire()
@@ -310,14 +324,20 @@ def spawn_obstacle(game_board):
                      "  xx      xx  ",
                      "    xxxxxx    "] # Spiral thingy.
                 ]
-    def obstacle_validate((r,c), obs):
+    def obstacle_validate(coord, obs):
+        if len(coord) != 2:
+            raise Exception # TODO: An actual exception
+        r, c = coord
         for y, curr_row in enumerate(obs):
             for x, curr_char in enumerate(curr_row):
                 if not game_board.is_valid_coord((y+r,x+c)) or game_board.get((y+r,x+c)) in [snake_symbol, food_symbol, wall_symbol]:
                     return False
         return True
 
-    def obstacle_make((r,c), obs):
+    def obstacle_make(coord, obs):
+        if len(coord) != 2:
+            raise Exception # TODO: An actual exception
+        r, c = coord
         for y, curr_row in enumerate(obs):
             for x, curr_char in enumerate(curr_row):
                 if curr_char == 'x':
@@ -345,7 +365,7 @@ def init():
     game_board = Board(get_terminal_dimensions())
 
     # TODO: I don't like this.
-    snake = Snake((game_board.height() / 2, game_board.width() / 2))
+    snake = Snake((game_board.height() // 2, game_board.width() // 2))
     game_board.set(snake.get_head(), snake_symbol)
 
     # Draw the initial board, and then only redraw the changes.
@@ -354,7 +374,7 @@ def init():
     # TODO: Make num_food based on board size
     spawn_new_food(game_board)
     # TODO: Have something to stop spawning walls, not an arbitrary number.
-    for i in xrange(25):
+    for i in range(25):
         spawn_obstacle(game_board)
 
     return game_board, snake
